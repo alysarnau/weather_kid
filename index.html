@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFE9A8">
+<meta name="color-scheme" content="light dark">
+<meta name="darkreader-lock">
+<meta name="theme-color" content="#FFE9A8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2B2A26" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="What to Wear">
 <title>What to Wear</title>
 <style>
   :root {
+    color-scheme: light dark;
     --bg: #FFE9A8;
     --ink: #2B2A33;
     --ink-soft: #5B5966;
@@ -20,6 +24,18 @@
   body[data-sky="rain"]  { --bg: #B7CADA; }
   body[data-sky="snow"]  { --bg: #E9EFF6; }
   body[data-sky="night"] { --bg: #27324F; --ink: #F3EFE4; --ink-soft: #B7BDD2; --ground: rgba(0, 0, 0, .3); }
+
+  /* Dark mode: the page does its own dark palette, so phones don't force-invert it
+     (that's what was turning her face brown). The kid's colors never change. */
+  @media (prefers-color-scheme: dark) {
+    body { --bg: #3A3424; --ink: #F3EFE4; --ink-soft: #B9B7C4; --ground: rgba(0, 0, 0, .32); }
+    body[data-sky="cloud"] { --bg: #2E3944; }
+    body[data-sky="fog"]   { --bg: #35373A; }
+    body[data-sky="rain"]  { --bg: #243545; }
+    body[data-sky="snow"]  { --bg: #3A4452; }
+    body[data-sky="night"] { --bg: #27324F; }
+    body[data-precip="rain"] #precip i { background: #8FB3D1; opacity: .5; }
+  }
 
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; overflow: hidden; cursor: none; }
