@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFE9A8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="What to Wear">
+<title>What to Wear</title>
+<style>
+  :root {
+    --bg: #FFE9A8;
+    --ink: #2B2A33;
+    --ink-soft: #5B5966;
+    --ground: rgba(43, 42, 51, .14);
+  }
+  body[data-sky="cloud"] { --bg: #D9E2E8; }
+  body[data-sky="fog"]   { --bg: #E3E3DE; }
+  body[data-sky="rain"]  { --bg: #B7CADA; }
+  body[data-sky="snow"]  { --bg: #E9EFF6; }
+  body[data-sky="night"] { --bg: #27324F; --ink: #F3EFE4; --ink-soft: #B7BDD2; --ground: rgba(0, 0, 0, .3); }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; cursor: none; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Avenir Next Rounded", "Nunito", "Trebuchet MS", system-ui, sans-serif;
+    transition: background-color 1.2s ease;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: center;
+    padding: 3vh 4vw 3vh 2vw;
+    gap: 2vw;
+  }
+
+  #kid { height: 94vh; width: 100%; display: block; }
+
+  .readout { min-width: 0; }
+  .temp { font-size: 28vh; font-weight: 800; line-height: .9; letter-spacing: -.03em; margin: 0; }
+  .temp sup { font-size: .38em; font-weight: 700; vertical-align: top; position: relative; top: .12em; margin-left: .04em; }
+  .cond { font-size: 7vh; font-weight: 700; margin: 2vh 0 0; line-height: 1.1; }
+  .range { font-size: 5vh; font-weight: 700; margin: 1.8vh 0 0; line-height: 1.1; }
+  .meta { font-size: 4vh; color: var(--ink-soft); margin: 1vh 0 0; line-height: 1.3; }
+  .wear { font-size: 4.8vh; font-weight: 700; margin: 4vh 0 0; line-height: 1.25; }
+  .wear small { display: block; font-size: 3.5vh; font-weight: 600; color: var(--ink-soft); margin-bottom: .6vh; }
+  .status { position: absolute; left: 2vw; bottom: 1.6vh; font-size: 2.8vh; color: var(--ink-soft); margin: 0; }
+
+  /* Falling rain / snow, behind everything. Only runs when the sky needs it. */
+  #precip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  #precip i {
+    position: absolute; top: -6vh; display: block;
+    animation: fall linear infinite;
+    opacity: 0;
+  }
+  body[data-precip="rain"] #precip i { width: .35vh; height: 4.5vh; background: #5E7F9C; border-radius: 1vh; opacity: .55; }
+  body[data-precip="snow"] #precip i { width: 1.6vh; height: 1.6vh; background: #fff; border-radius: 50%; opacity: .9; }
+  @keyframes fall { to { transform: translateY(112vh); } }
+  @media (prefers-reduced-motion: reduce) { #precip { display: none; } }
+
+  .layer { display: none; }
+
+  /* ---------- Phone / portrait layout: kid on top, readout below, page scrolls ---------- */
+  @media (orientation: portrait) {
+    html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; cursor: auto; }
+    main {
+      height: auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      grid-template-columns: minmax(0, 1fr);
+      align-content: start;
+      justify-items: center;
+      gap: 1vh;
+      padding: max(3vh, env(safe-area-inset-top)) 7vw max(5vh, env(safe-area-inset-bottom));
+    }
+    #kid { width: 100%; height: auto; max-height: 46vh; max-height: 46dvh; }
+    .readout { width: 100%; text-align: center; }
+    .temp { font-size: 27vw; }
+    .cond { font-size: 8vw; margin-top: 1.5vh; }
+    .range { font-size: 6vw; margin-top: 1.5vh; }
+    .meta { font-size: 4.6vw; margin-top: .8vh; }
+    .wear { font-size: 5.6vw; margin-top: 3vh; }
+    .wear small { font-size: 4vw; }
+    .status { position: static; font-size: 3.4vw; margin-top: 2vh; text-align: center; }
+    #precip { position: fixed; }
+    #precip i { top: -8vw; }
+    body[data-precip="rain"] #precip i { width: .8vw; height: 9vw; }
+    body[data-precip="snow"] #precip i { width: 3vw; height: 3vw; }
+  }
+</style>
+</head>
+<body data-sky="clear">
+<div id="precip" aria-hidden="true"></div>
+
+<main>
+  <svg id="kid" viewBox="0 0 300 460" role="img" aria-label="Illustration of a girl dressed for the current weather">
+    <ellipse cx="150" cy="414" rx="82" ry="8" fill="var(--ground)"/>
+
+    <!-- LEGS -->
+    <rect x="118" y="272" width="28" height="124" rx="10" fill="#F2C29B"/>
+    <rect x="154" y="272" width="28" height="124" rx="10" fill="#F2C29B"/>
+
+    <!-- PANTS (lilac leggings) -->
+    <g id="pants" class="layer">
+      <rect x="116" y="268" width="32" height="126" rx="10" fill="#B9A6E6"/>
+      <rect x="152" y="268" width="32" height="126" rx="10" fill="#B9A6E6"/>
+      <rect x="112" y="260" width="76" height="34" rx="12" fill="#B9A6E6"/>
+      <rect x="112" y="266" width="76" height="6" fill="#A28DD6"/>
+    </g>
+
+    <!-- SHORTS (sky blue) -->
+    <g id="shorts" class="layer">
+      <rect x="114" y="268" width="36" height="58" rx="10" fill="#9CCBEA"/>
+      <rect x="150" y="268" width="36" height="58" rx="10" fill="#9CCBEA"/>
+      <rect x="112" y="260" width="76" height="34" rx="12" fill="#9CCBEA"/>
+      <rect x="112" y="266" width="76" height="6" fill="#7DB5DA"/>
+      <circle cx="132" cy="312" r="2.5" fill="#fff" opacity=".7"/>
+      <circle cx="168" cy="312" r="2.5" fill="#fff" opacity=".7"/>
+    </g>
+
+    <!-- SHOES -->
+    <g id="sneakers" class="layer">
+      <rect x="106" y="390" width="42" height="20" rx="10" fill="#FFF7FA" stroke="#B9A6E6" stroke-width="2.5"/>
+      <rect x="152" y="390" width="42" height="20" rx="10" fill="#FFF7FA" stroke="#B9A6E6" stroke-width="2.5"/>
+      <rect x="112" y="398" width="30" height="5" rx="2.5" fill="#F28AB2"/>
+      <rect x="158" y="398" width="30" height="5" rx="2.5" fill="#F28AB2"/>
+    </g>
+    <g id="rainBoots" class="layer">
+      <rect x="109" y="350" width="39" height="60" rx="9" fill="#FFD76E"/>
+      <rect x="152" y="350" width="39" height="60" rx="9" fill="#FFD76E"/>
+      <rect x="109" y="401" width="39" height="9" rx="4.5" fill="#E2B04A"/>
+      <rect x="152" y="401" width="39" height="9" rx="4.5" fill="#E2B04A"/>
+      <rect x="109" y="350" width="39" height="7" rx="3.5" fill="#FFE59A"/>
+      <rect x="152" y="350" width="39" height="7" rx="3.5" fill="#FFE59A"/>
+      <g fill="#fff" opacity=".7">
+        <circle cx="121" cy="372" r="3"/><circle cx="136" cy="384" r="3"/><circle cx="123" cy="394" r="3"/>
+        <circle cx="164" cy="372" r="3"/><circle cx="179" cy="384" r="3"/><circle cx="166" cy="394" r="3"/>
+      </g>
+    </g>
+    <g id="snowBoots" class="layer">
+      <rect x="109" y="346" width="39" height="64" rx="9" fill="#C28BA8"/>
+      <rect x="152" y="346" width="39" height="64" rx="9" fill="#C28BA8"/>
+      <rect x="109" y="401" width="39" height="9" rx="4.5" fill="#8F5F7D"/>
+      <rect x="152" y="401" width="39" height="9" rx="4.5" fill="#8F5F7D"/>
+      <rect x="105" y="338" width="47" height="15" rx="7.5" fill="#FFF3F7"/>
+      <rect x="148" y="338" width="47" height="15" rx="7.5" fill="#FFF3F7"/>
+    </g>
+
+    <!-- ARMS (skin) -->
+    <rect x="90" y="172" width="20" height="98" rx="10" fill="#F2C29B"/>
+    <rect x="190" y="172" width="20" height="98" rx="10" fill="#F2C29B"/>
+
+    <!-- NECK + EARS -->
+    <rect x="142" y="150" width="16" height="22" rx="6" fill="#E5AF84"/>
+
+    <!-- T-SHIRT (always, soft pink) -->
+    <g id="tshirt">
+      <rect x="110" y="166" width="80" height="108" rx="14" fill="#F7A9C6"/>
+      <rect x="88" y="168" width="28" height="36" rx="10" fill="#F7A9C6"/>
+      <rect x="184" y="168" width="28" height="36" rx="10" fill="#F7A9C6"/>
+      <path d="M134 166 Q150 184 166 166" fill="#E88CB0"/>
+      <path d="M150 222 c-7 -9 -20 -2 -12 8 l12 11 l12 -11 c8 -10 -5 -17 -12 -8 z" fill="#FFF7FA" opacity=".85"/>
+    </g>
+
+    <!-- DRESS (peach, over the t-shirt; hidden unless it's a dress day) -->
+    <g id="dress" class="layer">
+      <path d="M110 230 L190 230 L214 332 Q202 344 190 334 Q178 346 166 336 Q154 348 142 336 Q130 346 118 334 Q104 344 86 332 Z" fill="#FFB5A7"/>
+      <rect x="110" y="166" width="80" height="68" rx="14" fill="#FFB5A7"/>
+      <rect x="86" y="166" width="32" height="40" rx="14" fill="#FFB5A7"/>
+      <rect x="182" y="166" width="32" height="40" rx="14" fill="#FFB5A7"/>
+      <path d="M130 166 Q150 188 170 166 Z" fill="#F2C29B"/>
+      <rect x="110" y="224" width="80" height="10" rx="5" fill="#C3A8EE"/>
+      <g fill="#C3A8EE">
+        <ellipse cx="144" cy="229" rx="9" ry="6" transform="rotate(-20 144 229)"/>
+        <ellipse cx="156" cy="229" rx="9" ry="6" transform="rotate(20 156 229)"/>
+      </g>
+      <circle cx="150" cy="229" r="4" fill="#9F8AD0"/>
+      <g fill="#fff" opacity=".75">
+        <circle cx="122" cy="256" r="3.5"/><circle cx="150" cy="262" r="3.5"/><circle cx="178" cy="256" r="3.5"/>
+        <circle cx="108" cy="292" r="3.5"/><circle cx="136" cy="290" r="3.5"/><circle cx="164" cy="290" r="3.5"/><circle cx="192" cy="292" r="3.5"/>
+        <circle cx="122" cy="318" r="3.5"/><circle cx="150" cy="322" r="3.5"/><circle cx="178" cy="318" r="3.5"/>
+      </g>
+    </g>
+
+    <!-- LIGHT JACKET (mint) -->
+    <g id="lightJacket" class="layer">
+      <rect x="86" y="168" width="26" height="100" rx="12" fill="#8FD9C1"/>
+      <rect x="188" y="168" width="26" height="100" rx="12" fill="#8FD9C1"/>
+      <rect x="106" y="164" width="88" height="116" rx="16" fill="#8FD9C1"/>
+      <rect x="86" y="256" width="26" height="9" rx="4" fill="#6DBBA2"/>
+      <rect x="188" y="256" width="26" height="9" rx="4" fill="#6DBBA2"/>
+      <line x1="150" y1="172" x2="150" y2="280" stroke="#58A38B" stroke-width="3"/>
+      <rect x="146" y="164" width="8" height="12" rx="3" fill="#58A38B"/>
+      <rect x="116" y="238" width="22" height="3" rx="1.5" fill="#58A38B"/>
+      <rect x="162" y="238" width="22" height="3" rx="1.5" fill="#58A38B"/>
+    </g>
+
+    <!-- HEAVY COAT (bubblegum pink) -->
+    <g id="heavyCoat" class="layer">
+      <rect x="78" y="168" width="34" height="104" rx="16" fill="#F59AC0"/>
+      <rect x="188" y="168" width="34" height="104" rx="16" fill="#F59AC0"/>
+      <rect x="100" y="162" width="100" height="144" rx="24" fill="#F59AC0"/>
+      <rect x="78" y="258" width="34" height="12" rx="6" fill="#E077A4"/>
+      <rect x="188" y="258" width="34" height="12" rx="6" fill="#E077A4"/>
+      <g stroke="#E077A4" stroke-width="3" stroke-linecap="round">
+        <line x1="108" y1="206" x2="192" y2="206"/>
+        <line x1="108" y1="244" x2="192" y2="244"/>
+        <line x1="108" y1="282" x2="192" y2="282"/>
+        <line x1="150" y1="176" x2="150" y2="304"/>
+      </g>
+      <rect x="116" y="154" width="68" height="20" rx="10" fill="#FFE3EE"/>
+    </g>
+
+    <!-- HANDS -->
+    <circle cx="100" cy="276" r="10" fill="#F2C29B"/>
+    <circle cx="200" cy="276" r="10" fill="#F2C29B"/>
+
+    <!-- MITTENS (lavender) -->
+    <g id="mittens" class="layer">
+      <circle cx="98" cy="280" r="14" fill="#C3A8EE"/>
+      <ellipse cx="111" cy="274" rx="5" ry="8" fill="#C3A8EE" transform="rotate(25 111 274)"/>
+      <rect x="86" y="266" width="24" height="7" rx="3.5" fill="#A98CDB"/>
+      <circle cx="202" cy="280" r="14" fill="#C3A8EE"/>
+      <ellipse cx="189" cy="274" rx="5" ry="8" fill="#C3A8EE" transform="rotate(-25 189 274)"/>
+      <rect x="190" y="266" width="24" height="7" rx="3.5" fill="#A98CDB"/>
+    </g>
+
+    <!-- SCARF (mint) -->
+    <g id="scarf" class="layer">
+      <rect x="116" y="152" width="68" height="20" rx="10" fill="#8FD9C1"/>
+      <rect x="160" y="162" width="18" height="50" rx="7" fill="#6DBBA2"/>
+      <g stroke="#C5F0E2" stroke-width="3" stroke-linecap="round">
+        <line x1="164" y1="178" x2="174" y2="178"/>
+        <line x1="164" y1="192" x2="174" y2="192"/>
+      </g>
+    </g>
+
+    <!-- CURLY HAIR (back) -->
+    <g id="hairBack" fill="#B58A5C">
+      <circle cx="150" cy="80" r="24"/>
+      <circle cx="116" cy="92" r="15"/>
+      <circle cx="184" cy="92" r="15"/>
+      <circle cx="104" cy="110" r="15"/>
+      <circle cx="196" cy="110" r="15"/>
+      <circle cx="98" cy="128" r="14"/>
+      <circle cx="202" cy="128" r="14"/>
+      <circle cx="104" cy="146" r="12"/>
+      <circle cx="196" cy="146" r="12"/>
+    </g>
+
+    <!-- HEAD + FACE -->
+    <circle cx="150" cy="118" r="40" fill="#F2C29B"/>
+    <circle cx="135" cy="122" r="4.5" fill="#2B2A33"/>
+    <circle cx="165" cy="122" r="4.5" fill="#2B2A33"/>
+    <g stroke="#2B2A33" stroke-width="2" stroke-linecap="round">
+      <line x1="130" y1="118" x2="126" y2="115"/>
+      <line x1="170" y1="118" x2="174" y2="115"/>
+    </g>
+    <circle cx="126" cy="136" r="6" fill="#F07C9F" opacity=".45"/>
+    <circle cx="174" cy="136" r="6" fill="#F07C9F" opacity=".45"/>
+    <path d="M138 137 Q150 149 162 137" fill="none" stroke="#2B2A33" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- CURLY HAIR (front) + bow -->
+    <g id="hairFront">
+      <g fill="#B58A5C">
+        <circle cx="150" cy="82" r="22"/>
+        <circle cx="124" cy="92" r="14"/>
+        <circle cx="176" cy="92" r="14"/>
+        <circle cx="137" cy="98" r="10"/>
+        <circle cx="163" cy="98" r="10"/>
+        <circle cx="150" cy="100" r="8"/>
+      </g>
+      <g fill="none" stroke="#9C7248" stroke-width="2.5" stroke-linecap="round">
+        <path d="M118 90 q5 -9 11 -1"/>
+        <path d="M133 96 q5 -8 10 0"/>
+        <path d="M146 98 q4 -7 8 0"/>
+        <path d="M158 96 q5 -8 10 0"/>
+        <path d="M171 90 q5 -9 11 -1"/>
+        <path d="M138 74 q6 -8 12 0 q6 -8 12 0"/>
+      </g>
+      <g fill="#F28AB2">
+        <ellipse cx="170" cy="78" rx="10" ry="6" transform="rotate(-25 170 78)"/>
+        <ellipse cx="186" cy="82" rx="10" ry="6" transform="rotate(25 186 82)"/>
+      </g>
+      <circle cx="178" cy="80" r="4.5" fill="#D96A97"/>
+    </g>
+
+    <!-- SUNGLASSES (pink frames) -->
+    <g id="sunglasses" class="layer">
+      <rect x="120" y="111" width="26" height="17" rx="7" fill="#8E6BB8" stroke="#F28AB2" stroke-width="3"/>
+      <rect x="154" y="111" width="26" height="17" rx="7" fill="#8E6BB8" stroke="#F28AB2" stroke-width="3"/>
+      <line x1="146" y1="117" x2="154" y2="117" stroke="#F28AB2" stroke-width="3"/>
+      <line x1="120" y1="116" x2="111" y2="114" stroke="#F28AB2" stroke-width="3" stroke-linecap="round"/>
+      <line x1="180" y1="116" x2="189" y2="114" stroke="#F28AB2" stroke-width="3" stroke-linecap="round"/>
+      <path d="M125 116 L131 116" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+      <path d="M159 116 L165 116" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+    </g>
+
+    <!-- HAT (lavender beanie) -->
+    <g id="hat" class="layer">
+      <path d="M109 108 Q107 66 150 66 Q193 66 191 108 Z" fill="#C3A8EE"/>
+      <rect x="106" y="100" width="88" height="15" rx="7.5" fill="#A98CDB"/>
+      <g stroke="#DCC8F6" stroke-width="3" stroke-linecap="round">
+        <line x1="126" y1="104" x2="126" y2="111"/>
+        <line x1="138" y1="104" x2="138" y2="111"/>
+        <line x1="150" y1="104" x2="150" y2="111"/>
+        <line x1="162" y1="104" x2="162" y2="111"/>
+        <line x1="174" y1="104" x2="174" y2="111"/>
+      </g>
+      <circle cx="150" cy="62" r="8" fill="#FFE3EE"/>
+    </g>
+
+    <!-- UMBRELLA (pink and cream) -->
+    <g id="umbrella" class="layer">
+      <path d="M120 58 Q120 8 200 8 Q280 8 280 58 Q260 46 240 58 Q220 46 200 58 Q180 46 160 58 Q140 46 120 58 Z" fill="#F28AB2"/>
+      <path d="M200 8 Q176 12 160 58 Q180 46 200 58 Z" fill="#FFE3EE"/>
+      <path d="M200 8 Q224 12 240 58 Q220 46 200 58 Z" fill="#FFE3EE"/>
+      <path d="M200 58 V292 q0 10 -9 10" fill="none" stroke="#8A7A96" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </svg>
+
+  <section class="readout">
+    <h1 class="temp"><span id="temp">--</span><sup>°F</sup></h1>
+    <p class="cond" id="cond">Checking the sky…</p>
+    <p class="range" id="range"></p>
+    <p class="meta" id="meta"></p>
+    <p class="meta" id="rain"></p>
+    <p class="wear" id="wear"></p>
+  </section>
+
+  <p class="status" id="status"></p>
+</main>
+
+<script>
+/* ---------- Settings ---------- */
+const LAT = 42.25;            // Set to your latitude
+const LON = -71.00;           // Set to your longitude
+const REFRESH_MS = 15 * 60 * 1000;
+const RETRY_MS = 60 * 1000;
+
+/* Clothing rules: edit the thresholds to match the kid's opinions. */
+/* Dress days: she wears a dress on every other day (even dates) when it's 50° or warmer.
+   Open the page with ?dress=1 or ?dress=0 to force it on or off. */
+function dressToday() {
+  const p = new URLSearchParams(location.search).get("dress");
+  if (p === "1") return true;
+  if (p === "0") return false;
+  return new Date().getDate() % 2 === 0;
+}
+
+function outfit(feels, code, isDay, pop) {
+  const dress = dressToday() && feels >= 50;
+  const rain  = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code);
+  const snow  = [71,73,75,77,85,86].includes(code);
+  const sunny = [0, 1].includes(code) && isDay;
+  const snowBoots = snow || feels < 25;
+  return {
+    heavyCoat:   feels < 35,
+    lightJacket: feels >= 35 && feels < 60,
+    hat:         feels < 45,
+    mittens:     feels < 38,
+    scarf:       feels < 40,
+    dress:       dress,
+    shorts:      feels >= 72 && !dress,
+    pants:       feels < 72,   // shows as leggings under a dress
+    sunglasses:  sunny && feels >= 45,
+    umbrella:    rain || (pop >= 75 && !snow),   // also on dry-now days with a 75%+ chance
+    rainBoots:   rain && !snowBoots,
+    snowBoots:   snowBoots,
+    sneakers:    !snowBoots && !(rain)
+  };
+}
+
+const NAMES = {
+  heavyCoat: "winter coat", lightJacket: "light jacket", hat: "hat", mittens: "mittens",
+  scarf: "scarf", dress: "dress", shorts: "shorts", pants: "pants", sunglasses: "sunglasses",
+  umbrella: "umbrella", rainBoots: "rain boots", snowBoots: "snow boots"
+};
+
+const CONDITIONS = {
+  0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Cloudy",
+  45: "Foggy", 48: "Foggy",
+  51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle",
+  61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain",
+  71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+  80: "Rain showers", 81: "Rain showers", 82: "Heavy showers",
+  85: "Snow showers", 86: "Heavy snow showers",
+  95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm"
+};
+
+function skyFor(code, isDay) {
+  if ([71,73,75,77,85,86].includes(code)) return "snow";
+  if ([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code)) return "rain";
+  if ([45,48].includes(code)) return "fog";
+  if ([2,3].includes(code)) return "cloud";
+  return isDay ? "clear" : "night";
+}
+
+/* ---------- Rain / snow particles ---------- */
+const precip = document.getElementById("precip");
+for (let i = 0; i < 36; i++) {
+  const p = document.createElement("i");
+  p.style.left = (Math.random() * 100) + "vw";
+  p.style.animationDuration = (1.2 + Math.random() * 1.6) + "s";
+  p.style.animationDelay = (-Math.random() * 3) + "s";
+  precip.appendChild(p);
+}
+function setPrecip(code) {
+  const snow = [71,73,75,77,85,86].includes(code);
+  const rain = [51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code);
+  document.body.dataset.precip = snow ? "snow" : rain ? "rain" : "none";
+  // Snow falls slower than rain
+  precip.querySelectorAll("i").forEach((p, i) => {
+    p.style.animationDuration = snow ? (4 + (i % 5)) + "s" : (1.2 + (i % 7) * .25) + "s";
+  });
+}
+
+/* ---------- Render ---------- */
+function render(d) {
+  const feels = Math.round(d.feels);
+  const o = outfit(d.feels, d.code, d.isDay, d.pop);
+
+  for (const [id, show] of Object.entries(o)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? "block" : "none";
+  }
+
+  document.body.dataset.sky = skyFor(d.code, d.isDay);
+  setPrecip(d.code);
+
+  document.getElementById("temp").textContent = Math.round(d.temp);
+  document.getElementById("cond").textContent = CONDITIONS[d.code] || "Mixed weather";
+  document.getElementById("range").textContent =
+    "High " + Math.round(d.hi) + "°  ·  Low " + Math.round(d.lo) + "°";
+  document.getElementById("meta").textContent =
+    "Feels like " + feels + "°  ·  Wind " + Math.round(d.wind) + " mph";
+
+  // Label the chance as snow when the whole day stays near freezing
+  const kind = d.hi <= 34 ? "Snow" : "Rain";
+  document.getElementById("rain").textContent =
+    kind + " chance " + (d.pop == null ? "--" : Math.round(d.pop) + "%");
+
+  const items = Object.keys(NAMES).filter(k => o[k])
+    .map(k => (k === "pants" && o.dress) ? "leggings" : NAMES[k]);
+  document.getElementById("wear").innerHTML = "<small>Today, wear</small>" + items.join(", ");
+}
+
+/* ---------- Fetch ---------- */
+function apiUrl(lat, lon) {
+  return "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+    "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day" +
+    "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+    "&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1";
+}
+
+/* Location: the fixed LAT/LON above by default (best for the kiosk).
+   Add ?loc=me to the address to use the device's current location instead (best for a phone).
+   Browsers only allow this on https:// pages, so on plain http it falls back to LAT/LON. */
+function getCoords() {
+  const fixed = { lat: LAT, lon: LON, note: "" };
+  const q = new URLSearchParams(location.search);
+  if (q.get("loc") !== "me") return Promise.resolve(fixed);
+  if (!navigator.geolocation || !window.isSecureContext) {
+    return Promise.resolve({ ...fixed, note: " · showing home (location needs https)" });
+  }
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({
+        lat: pos.coords.latitude.toFixed(3),
+        lon: pos.coords.longitude.toFixed(3),
+        note: " · your location"
+      }),
+      () => resolve({ ...fixed, note: " · showing home (location off)" }),
+      { timeout: 10000, maximumAge: 10 * 60 * 1000 }
+    );
+  });
+}
+
+const status = document.getElementById("status");
+
+/* Test mode: open the page with ?temp=30&code=71&day=1 to preview any weather.
+   Optional extras: &feels= &wind= &hi= &lo= &pop= */
+const q = new URLSearchParams(location.search);
+if (q.has("temp") || q.has("code")) {
+  const t = parseFloat(q.get("temp") ?? "60");
+  render({
+    temp: t, feels: parseFloat(q.get("feels") ?? t),
+    code: parseInt(q.get("code") ?? "0", 10),
+    wind: parseFloat(q.get("wind") ?? "5"),
+    isDay: q.get("day") !== "0",
+    hi: parseFloat(q.get("hi") ?? (t + 8)),
+    lo: parseFloat(q.get("lo") ?? (t - 8)),
+    pop: q.has("pop") ? parseFloat(q.get("pop")) : 0
+  });
+  status.textContent = "Test mode";
+} else {
+  update();
+}
+
+async function update() {
+  try {
+    const where = await getCoords();
+    const res = await fetch(apiUrl(where.lat, where.lon), { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const j = await res.json();
+    const c = j.current, day = j.daily;
+    render({
+      temp: c.temperature_2m, feels: c.apparent_temperature,
+      code: c.weather_code, wind: c.wind_speed_10m, isDay: c.is_day === 1,
+      hi: day.temperature_2m_max[0], lo: day.temperature_2m_min[0],
+      pop: day.precipitation_probability_max ? day.precipitation_probability_max[0] : null
+    });
+    status.textContent = "Updated " +
+      new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + where.note;
+    setTimeout(update, REFRESH_MS);
+  } catch (e) {
+    status.textContent = "Can't reach the weather service. Retrying in a minute.";
+    setTimeout(update, RETRY_MS);
+  }
+}
+</script>
+</body>
+</html>
